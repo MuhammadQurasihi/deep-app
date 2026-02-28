@@ -1,22 +1,31 @@
 import streamlit as st
 import torch
+import torch.nn as nn
 import torchvision.transforms as transforms
+import torchvision.models as models
 from PIL import Image
 
-# ---------- إعداد الصفحة ----------
 st.title("Deepfake Detector")
+
+# ---------- تعريف الموديل ----------
+def build_model():
+    model = models.resnet18(weights=None)
+    model.fc = nn.Linear(model.fc.in_features, 2)
+    return model
 
 # ---------- تحميل الموديل ----------
 @st.cache_resource
 def load_model():
-    model = torch.load("final_model.pth", map_location=torch.device("cpu"))
+    model = build_model()
+    state_dict = torch.load("final_model.pth", map_location="cpu")
+    model.load_state_dict(state_dict)
     model.eval()
     return model
 
 model = load_model()
 
 # ---------- أسماء الكلاسات ----------
-class_names = ["fake", "real"]  # مهم ترتيب نفس التدريب
+class_names = ["fake", "real"]
 
 # ---------- preprocessing ----------
 transform = transforms.Compose([
@@ -24,7 +33,6 @@ transform = transforms.Compose([
     transforms.ToTensor(),
 ])
 
-# ---------- رفع صورة ----------
 uploaded_file = st.file_uploader("Upload Image", type=["jpg", "png", "jpeg"])
 
 if uploaded_file is not None:
@@ -39,5 +47,4 @@ if uploaded_file is not None:
         _, predicted = torch.max(outputs, 1)
 
     label = class_names[predicted.item()]
-
     st.subheader(f"Prediction: {label}")
