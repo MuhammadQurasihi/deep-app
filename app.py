@@ -9,7 +9,7 @@ st.title("Deepfake Detector")
 # ---------- تحميل الموديل ----------
 @st.cache_resource
 def load_model():
-    model = torch.load("model.pth", map_location=torch.device("cpu"))
+    model = torch.load("final_model.pth", map_location=torch.device("cpu"))
     model.eval()
     return model
 
