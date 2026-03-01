@@ -1,6 +1,3 @@
-# ==============================
-# app.py - Deepfake Detector
-# ==============================
 import streamlit as st
 import torch
 import torch.nn as nn
@@ -8,16 +5,8 @@ import clip
 from PIL import Image
 import torchvision.transforms as transforms
 
-# ---------- Device setup ----------
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
-# ---------- Load CLIP ----------
-clip_model, preprocess = clip.load("ViT-L/14", device=device)
-clip_model.eval()
-for param in clip_model.parameters():
-    param.requires_grad = False
-
-# ---------- Build Classifier ----------
 class CLIPClassifier(nn.Module):
     def __init__(self, clip_model):
         super().__init__()
@@ -40,13 +29,20 @@ class CLIPClassifier(nn.Module):
         logits = self.fc(features)
         return logits
 
-# ---------- Load weights ----------
-model = CLIPClassifier(clip_model).to(device)
-state_dict = torch.load("clip_classifier.pth", map_location=device)
-model.fc.load_state_dict(state_dict)
-model.eval()
+@st.cache_resource
+def load_model():
+    clip_model, preprocess = clip.load("ViT-L/14", device=device)
+    clip_model.eval()
+    for param in clip_model.parameters():
+        param.requires_grad = False
+    model = CLIPClassifier(clip_model).to(device)
+    state_dict = torch.load("clip_classifier.pth", map_location=device)
+    model.fc.load_state_dict(state_dict)
+    model.eval()
+    return model, preprocess
 
-# ---------- Streamlit ----------
+model, preprocess = load_model()
+
 st.title("🖼️ Deep Fake Detector")
 st.write("Upload an image to check if it is Real or Fake")
 
@@ -56,7 +52,6 @@ if uploaded_file is not None:
     image = Image.open(uploaded_file).convert("RGB")
     st.image(image, caption="Uploaded Image", use_column_width=True)
 
-    # ---------- Preprocess ----------
     preprocess_transform = transforms.Compose([
         transforms.Resize((224, 224)),
         transforms.ToTensor(),
@@ -65,7 +60,6 @@ if uploaded_file is not None:
     ])
     img_tensor = preprocess_transform(image).unsqueeze(0).to(device)
 
-    # ---------- Prediction ----------
     with torch.no_grad():
         outputs = model(img_tensor)
         probs = torch.softmax(outputs, dim=1)
